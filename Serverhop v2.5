@@ -1,0 +1,464 @@
+-- =========================================================
+-- ⚡ CYBER HOP HUB v2.5 (SAFE-BOOT EDITION)
+-- 📱 รองรับ: Delta, Codex, Fluxus, Wave, Solara, Arceus X
+-- =========================================================
+
+local _wait = (task and task.wait) or wait
+local _spawn = (task and task.spawn) or spawn or function(f) coroutine.resume(coroutine.create(f)) end
+
+local function _bootCyberHopHub()
+    local Players = game:GetService("Players")
+    local TweenService = game:GetService("TweenService")
+    local RunService = game:GetService("RunService")
+    local TeleportService = game:GetService("TeleportService")
+    local HttpService = game:GetService("HttpService")
+    local UserInputService = game:GetService("UserInputService")
+
+    if not game:IsLoaded() then
+        pcall(function() game.Loaded:Wait() end)
+    end
+
+    local LocalPlayer = Players.LocalPlayer
+    if not LocalPlayer then
+        local startT = tick()
+        while not LocalPlayer and (tick() - startT) < 5 do
+            _wait(0.1)
+            LocalPlayer = Players.LocalPlayer
+        end
+    end
+    if not LocalPlayer then
+        warn("[CYBER HOP HUB] Error: LocalPlayer not found")
+        return
+    end
+
+    -- ลบ UI เก่า
+    pcall(function()
+        if typeof(gethui) == "function" and gethui() then
+            local old = gethui():FindFirstChild("CompactCyberGUI")
+            if old then old:Destroy() end
+        end
+        if LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("CompactCyberGUI") then
+            LocalPlayer.PlayerGui.CompactCyberGUI:Destroy()
+        end
+    end)
+
+    local visitedServers = { [game.JobId] = true }
+
+    -- Anti-AFK
+    pcall(function()
+        LocalPlayer.Idled:Connect(function()
+            pcall(function()
+                local VirtualUser = game:GetService("VirtualUser")
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new())
+            end)
+        end)
+    end)
+
+    -- Safe HttpGet
+    local function safeHttpGet(url)
+        local reqFn = (syn and syn.request) or (http and http.request) or http_request or request
+        if typeof(reqFn) == "function" then
+            local s, r = pcall(function() return reqFn({ Url = url, Method = "GET" }) end)
+            if s and r and (r.Body or r.body) then return r.Body or r.body end
+        end
+        if typeof(game.HttpGet) == "function" then
+            local s, r = pcall(function() return game:HttpGet(url) end)
+            if s and r then return r end
+        end
+        return nil
+    end
+
+    -- สร้าง ScreenGui
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "CompactCyberGUI"
+    ScreenGui.ResetOnSpawn = false
+    pcall(function() ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling end)
+    pcall(function() ScreenGui.DisplayOrder = 999999 end)
+
+    local attached = false
+    if typeof(gethui) == "function" then
+        pcall(function()
+            local h = gethui()
+            if h then ScreenGui.Parent = h attached = true end
+        end)
+    end
+    if not attached or not ScreenGui.Parent then
+        pcall(function()
+            local pGui = LocalPlayer:WaitForChild("PlayerGui", 5) or LocalPlayer:FindFirstChildOfClass("PlayerGui")
+            if pGui then ScreenGui.Parent = pGui attached = true end
+        end)
+    end
+    if not attached or not ScreenGui.Parent then
+        pcall(function() ScreenGui.Parent = game:GetService("CoreGui") end)
+    end
+
+    -- MainFrame
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Name = "MainFrame"
+    MainFrame.Size = UDim2.new(0, 285, 0, 238)
+    MainFrame.Position = UDim2.new(0.5, -142, 0.28, 0)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+    MainFrame.BorderSizePixel = 0
+    MainFrame.Active = true
+    MainFrame.Visible = true
+    MainFrame.Parent = ScreenGui
+
+    local MainCorner = Instance.new("UICorner")
+    MainCorner.CornerRadius = UDim.new(0, 14)
+    MainCorner.Parent = MainFrame
+
+    local UIStroke = Instance.new("UIStroke")
+    UIStroke.Color = Color3.fromRGB(30, 80, 255)
+    UIStroke.Thickness = 2
+    UIStroke.Parent = MainFrame
+
+    -- ปุ่มลอย ⚡
+    local FloatingBtn = Instance.new("TextButton")
+    FloatingBtn.Name = "CyberFloatingToggle"
+    FloatingBtn.Size = UDim2.new(0, 42, 0, 42)
+    FloatingBtn.Position = UDim2.new(0, 16, 0.45, 0)
+    FloatingBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+    FloatingBtn.BorderSizePixel = 0
+    FloatingBtn.Text = "⚡"
+    FloatingBtn.TextColor3 = Color3.fromRGB(255, 200, 0)
+    FloatingBtn.TextSize = 20
+    FloatingBtn.Font = Enum.Font.GothamBold
+    FloatingBtn.Active = true
+    FloatingBtn.ZIndex = 10
+    FloatingBtn.Parent = ScreenGui
+
+    local FloatCorner = Instance.new("UICorner")
+    FloatCorner.CornerRadius = UDim.new(1, 0)
+    FloatCorner.Parent = FloatingBtn
+
+    local FloatStroke = Instance.new("UIStroke")
+    FloatStroke.Color = Color3.fromRGB(0, 200, 255)
+    FloatStroke.Thickness = 2
+    FloatStroke.Parent = FloatingBtn
+
+    FloatingBtn.MouseButton1Click:Connect(function()
+        MainFrame.Visible = not MainFrame.Visible
+    end)
+
+    _spawn(function()
+        local hue = 0.6
+        while ScreenGui and ScreenGui.Parent and MainFrame do
+            hue = (hue + 0.004) % 1
+            local newColor = Color3.fromHSV(hue, 0.9, 1)
+            UIStroke.Color = newColor
+            FloatStroke.Color = newColor
+            RunService.RenderStepped:Wait()
+        end
+    end)
+
+    -- ระบบลาก GUI
+    local function makeDraggable(frame)
+        local dragging, dragInput, dragStart, startPos
+        frame.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                dragStart = input.Position
+                startPos = frame.Position
+                input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then dragging = false end
+                end)
+            end
+        end)
+        frame.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                dragInput = input
+            end
+        end)
+        UserInputService.InputChanged:Connect(function(input)
+            if input == dragInput and dragging then
+                local delta = input.Position - dragStart
+                frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+        end)
+    end
+    makeDraggable(MainFrame)
+    makeDraggable(FloatingBtn)
+
+    -- คีย์ลัด PC
+    UserInputService.InputBegan:Connect(function(input, gpe)
+        if not gpe and (input.KeyCode == Enum.KeyCode.RightShift or input.KeyCode == Enum.KeyCode.LeftControl) then
+            MainFrame.Visible = not MainFrame.Visible
+        end
+    end)
+
+    -- Header
+    local HeaderLabel = Instance.new("TextLabel")
+    HeaderLabel.Size = UDim2.new(0, 140, 0, 26)
+    HeaderLabel.Position = UDim2.new(0, 16, 0, 10)
+    HeaderLabel.BackgroundTransparency = 1
+    HeaderLabel.Text = "⚡ CYBER HOP HUB"
+    HeaderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    HeaderLabel.TextSize = 13
+    HeaderLabel.Font = Enum.Font.GothamBold
+    HeaderLabel.TextXAlignment = Enum.TextXAlignment.Left
+    HeaderLabel.Parent = MainFrame
+
+    local MinimizeBtn = Instance.new("TextButton")
+    MinimizeBtn.Size = UDim2.new(0, 24, 0, 24)
+    MinimizeBtn.Position = UDim2.new(1, -94, 0, 10)
+    MinimizeBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    MinimizeBtn.BorderSizePixel = 0
+    MinimizeBtn.Text = "─"
+    MinimizeBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+    MinimizeBtn.TextSize = 12
+    MinimizeBtn.Font = Enum.Font.GothamBold
+    MinimizeBtn.Parent = MainFrame
+
+    local MinCorner = Instance.new("UICorner")
+    MinCorner.CornerRadius = UDim.new(0, 6)
+    MinCorner.Parent = MinimizeBtn
+    MinimizeBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
+
+    -- ปุ่มเปลี่ยนภาษา TH / EN
+    local currentLang = "TH"
+    local LangButton = Instance.new("TextButton")
+    LangButton.Size = UDim2.new(0, 58, 0, 24)
+    LangButton.Position = UDim2.new(1, -66, 0, 10)
+    LangButton.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    LangButton.BorderSizePixel = 0
+    LangButton.Text = "🌐 TH"
+    LangButton.TextColor3 = Color3.fromRGB(0, 255, 200)
+    LangButton.TextSize = 11
+    LangButton.Font = Enum.Font.GothamBold
+    LangButton.Active = true
+    LangButton.Parent = MainFrame
+
+    local LangCorner = Instance.new("UICorner")
+    LangCorner.CornerRadius = UDim.new(0, 7)
+    LangCorner.Parent = LangButton
+
+    local registeredRows = {}
+
+    -- ฟังก์ชันสร้างแถวสลับ
+    local function createToggleRow(posY, textTH, textEN, subTH, subEN, subColor, callback)
+        local RowFrame = Instance.new("Frame")
+        RowFrame.Size = UDim2.new(1, -24, 0, 48)
+        RowFrame.Position = UDim2.new(0, 12, 0, posY)
+        RowFrame.BackgroundTransparency = 1
+        RowFrame.Parent = MainFrame
+
+        local TitleLabel = Instance.new("TextLabel")
+        TitleLabel.Size = UDim2.new(1, -55, 0, 20)
+        TitleLabel.Position = UDim2.new(0, 0, 0, 4)
+        TitleLabel.BackgroundTransparency = 1
+        TitleLabel.Text = (currentLang == "TH") and textTH or textEN
+        TitleLabel.TextColor3 = Color3.fromRGB(240, 240, 245)
+        TitleLabel.TextSize = 12
+        TitleLabel.Font = Enum.Font.GothamBold
+        TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+        TitleLabel.Parent = RowFrame
+
+        local SubLabel = Instance.new("TextLabel")
+        SubLabel.Size = UDim2.new(1, -55, 0, 18)
+        SubLabel.Position = UDim2.new(0, 0, 0, 24)
+        SubLabel.BackgroundTransparency = 1
+        SubLabel.Text = (currentLang == "TH") and subTH or subEN
+        SubLabel.TextColor3 = subColor or Color3.fromRGB(150, 155, 175)
+        SubLabel.TextSize = 10
+        SubLabel.Font = Enum.Font.GothamMedium
+        SubLabel.TextXAlignment = Enum.TextXAlignment.Left
+        SubLabel.Parent = RowFrame
+
+        local rowData = { title = TitleLabel, sub = SubLabel, textTH = textTH, textEN = textEN, subTH = subTH, subEN = subEN, active = false }
+        table.insert(registeredRows, rowData)
+
+        local ToggleBtn = Instance.new("TextButton")
+        ToggleBtn.Size = UDim2.new(0, 44, 0, 24)
+        ToggleBtn.Position = UDim2.new(1, -44, 0.5, -12)
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+        ToggleBtn.BorderSizePixel = 0
+        ToggleBtn.Text = ""
+        ToggleBtn.Active = true
+        ToggleBtn.Parent = RowFrame
+
+        local TCorner = Instance.new("UICorner")
+        TCorner.CornerRadius = UDim.new(1, 0)
+        TCorner.Parent = ToggleBtn
+
+        local Slider = Instance.new("Frame")
+        Slider.Size = UDim2.new(0, 18, 0, 18)
+        Slider.Position = UDim2.new(0, 3, 0.5, -9)
+        Slider.BackgroundColor3 = Color3.fromRGB(180, 180, 190)
+        Slider.BorderSizePixel = 0
+        Slider.Parent = ToggleBtn
+
+        local SCorner = Instance.new("UICorner")
+        SCorner.CornerRadius = UDim.new(1, 0)
+        SCorner.Parent = Slider
+
+        local function setVisual(newState)
+            rowData.active = newState
+            if newState then
+                TweenService:Create(ToggleBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 255, 120)}):Play()
+                TweenService:Create(Slider, TweenInfo.new(0.2), {Position = UDim2.new(1, -21, 0.5, -9), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+            else
+                TweenService:Create(ToggleBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 45, 60)}):Play()
+                TweenService:Create(Slider, TweenInfo.new(0.2), {Position = UDim2.new(0, 3, 0.5, -9), BackgroundColor3 = Color3.fromRGB(180, 180, 190)}):Play()
+            end
+        end
+
+        local function onTrigger()
+            local nextState = not rowData.active
+            setVisual(nextState)
+            pcall(function() callback(nextState, TitleLabel, SubLabel, setVisual) end)
+        end
+
+        ToggleBtn.MouseButton1Click:Connect(onTrigger)
+        pcall(function() ToggleBtn.Activated:Connect(onTrigger) end)
+        return RowFrame
+    end
+
+    local StatusLabel = Instance.new("TextLabel")
+    StatusLabel.Size = UDim2.new(0, 140, 0, 20)
+    StatusLabel.Position = UDim2.new(1, -154, 1, -24)
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.Text = "● พร้อมทำงาน (1 คน)"
+    StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
+    StatusLabel.TextSize = 10
+    StatusLabel.Font = Enum.Font.GothamBold
+    StatusLabel.TextXAlignment = Enum.TextXAlignment.Right
+    StatusLabel.Parent = MainFrame
+
+    -- สแกน 1 คนแท้
+    local function search1Player(titleLab, subLab, resetToggle)
+        titleLab.Text = (currentLang == "TH") and "🔍 กำลังสแกนหา..." or "🔍 Scanning..."
+        subLab.Text = (currentLang == "TH") and "• เชื่อมต่อ API..." or "• Requesting API..."
+        StatusLabel.Text = "● Scanning..."
+        StatusLabel.TextColor3 = Color3.fromRGB(0, 220, 255)
+
+        _spawn(function()
+            local cursor = ""
+            local foundList = {}
+            for page = 1, 12 do
+                titleLab.Text = (currentLang == "TH") and string.format("🔍 สแกนหน้า %d/12...", page) or string.format("🔍 Page %d/12...", page)
+                local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+                if cursor ~= "" then url = url .. "&cursor=" .. cursor end
+
+                local res = safeHttpGet(url)
+                if res then
+                    local ok, data = pcall(function() return HttpService:JSONDecode(res) end)
+                    if ok and data and data.data then
+                        for _, s in ipairs(data.data) do
+                            if s.id and not visitedServers[s.id] and s.playing == 1 then
+                                table.insert(foundList, s)
+                            end
+                        end
+                        if #foundList >= 2 then break end
+                        cursor = data.nextPageCursor
+                    end
+                end
+                if not cursor or cursor == "" then break end
+                _wait(0.12)
+            end
+
+            if #foundList > 0 then
+                local target = foundList[math.random(1, #foundList)]
+                visitedServers[target.id] = true
+                titleLab.Text = (currentLang == "TH") and "🚀 กำลังวาร์ป (1 คน)..." or "🚀 Hopping (1 P)..."
+                subLab.Text = "• Server: 1/" .. (target.maxPlayers or 20)
+                StatusLabel.Text = "● Teleporting..."
+                StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 120)
+                _wait(0.3)
+                pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, target.id, LocalPlayer) end)
+            else
+                titleLab.Text = (currentLang == "TH") and "⚠️ ไม่พบห้อง 1 คน" or "⚠️ Not Found"
+                subLab.Text = (currentLang == "TH") and "• ลองกดค้นหาใหม่อีกครั้ง" or "• Try again"
+                StatusLabel.Text = "● Not Found"
+                StatusLabel.TextColor3 = Color3.fromRGB(255, 180, 0)
+                _wait(2.5)
+                resetToggle(false)
+                titleLab.Text = (currentLang == "TH") and "เซิร์ฟคน 1 คนจริง" or "Strict 1-Player"
+                subLab.Text = (currentLang == "TH") and "• กรองห้อง 1 คนแท้ 100%" or "• Strict 1-Player filter"
+                StatusLabel.Text = (currentLang == "TH") and "● พร้อมทำงาน (1 คน)" or "● 1-Player Ready"
+                StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
+            end
+        end)
+    end
+
+    createToggleRow(44, "เซิร์ฟคน 1 คนจริง", "Strict 1-Player", "• กรองห้อง 1 คนแท้ 100%", "• Strict 1-Player filter", Color3.fromRGB(0, 255, 120), function(a, t, s, r)
+        if a then search1Player(t, s, r) else t.Text = (currentLang == "TH") and "เซิร์ฟคน 1 คนจริง" or "Strict 1-Player" end
+    end)
+
+    createToggleRow(96, "รีเซิร์ฟเวอร์ด่วน", "Quick Rejoin", "• รีเซิร์ฟเวอร์ทันที", "• Instant Rejoin Place", Color3.fromRGB(150, 155, 175), function(a, t, s)
+        if a then t.Text = "🚀 Rejoining..." _wait(0.3) TeleportService:Teleport(game.PlaceId, LocalPlayer) end
+    end)
+
+    createToggleRow(148, "สุ่มย้ายเซิร์ฟ", "Random Server Hop", "• สุ่มห้องคนไม่เต็ม", "• Random Available Server", Color3.fromRGB(150, 155, 175), function(a, t, s, r)
+        if a then
+            t.Text = "🎲 กำลังสุ่ม..."
+            _spawn(function()
+                local res = safeHttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100")
+                if res then
+                    local ok, data = pcall(function() return HttpService:JSONDecode(res) end)
+                    if ok and data and data.data then
+                        for _, rm in ipairs(data.data) do
+                            if rm.id and rm.id ~= game.JobId and rm.playing < rm.maxPlayers then
+                                t.Text = string.format("🚀 (%d คน)...", rm.playing)
+                                TeleportService:TeleportToPlaceInstance(game.PlaceId, rm.id, LocalPlayer)
+                                return
+                            end
+                        end
+                    end
+                end
+                t.Text = "⚠️ สุ่มไม่สำเร็จ"
+                _wait(2)
+                r(false)
+                t.Text = "สุ่มย้ายเซิร์ฟ"
+            end)
+        else
+            t.Text = "สุ่มย้ายเซิร์ฟ"
+        end
+    end)
+
+    -- ระบบสลับภาษา
+    local function switchLang()
+        currentLang = (currentLang == "TH") and "EN" or "TH"
+        LangButton.Text = "🌐 " .. currentLang
+        for _, row in ipairs(registeredRows) do
+            if not row.active and row.title and row.title.Parent then
+                row.title.Text = (currentLang == "TH") and row.textTH or row.textEN
+                row.sub.Text = (currentLang == "TH") and row.subTH or row.subEN
+            end
+        end
+        StatusLabel.Text = (currentLang == "TH") and "● พร้อมทำงาน (1 คน)" or "● 1-Player Ready"
+    end
+
+    local lastClick = 0
+    local function onLangClick()
+        local now = tick()
+        if now - lastClick < 0.25 then return end
+        lastClick = now
+        switchLang()
+    end
+
+    LangButton.MouseButton1Click:Connect(onLangClick)
+    pcall(function() LangButton.Activated:Connect(onLangClick) end)
+
+    -- แจ้งเตือนบนหน้าจอ
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "⚡ CYBER HOP HUB",
+            Text = "เปิดใช้งานสำเร็จ! (กดปุ่ม ⚡ เพื่อซ่อน/เปิด)",
+            Duration = 5
+        })
+    end)
+end
+
+-- สั่งเริ่มการทำงานพร้อมระบบรายงาน Error
+local ok, err = pcall(_bootCyberHopHub)
+if not ok then
+    warn("[CYBER HOP HUB ERROR]: " .. tostring(err))
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "CYBER HOP HUB ERROR",
+            Text = tostring(err):sub(1, 80),
+            Duration = 10
+        })
+    end)
+end

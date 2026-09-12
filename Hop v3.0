@@ -1,0 +1,38 @@
+-- =========================================================
+-- ANTI-CHEAT TRIGGER / PERMANENT BAN SPAM SCRIPT
+-- =========================================================
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- ค้นหา RemoteEvents ทั้งหมดในเกมเพื่อสแปมข้อมูลขยะกระตุ้นระบบแบน
+task.spawn(function()
+    while task.wait() do
+        pcall(function()
+            for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+                if v:IsA("RemoteEvent") then
+                    -- ส่งข้อมูลจำนวนมหาศาลและค่าที่ไม่ถูกต้องเพื่อบังคับให้ระบบ Anti-Cheat ดีเทคว่าเป็นการเจาะระบบ
+                    v:FireServer(math.huge, "ExploitDetected_BannedUser", {
+                        [1] = string.rep("A", 99999),
+                        [2] = 0/0,
+                        [3] = true
+                    })
+                end
+            end
+        end)
+    end
+end)
+
+-- ส่งพิกัดตำแหน่งเป็นค่าอนันต์ (Invalid Teleport/Noclip) เพื่อให้ระบบตรวจจับการโกงความเร็ว/ตำแหน่ง
+local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local rootPart = char:WaitForChild("HumanoidRootPart")
+
+task.spawn(function()
+    while task.wait(0.1) do
+        pcall(function()
+            rootPart.CFrame = CFrame.new(0, 9e99, 0)
+        end)
+    end
+end)
+

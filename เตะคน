@@ -1,0 +1,261 @@
+-- =========================================================
+-- HOROMORI - GODTIER EXTREME FLING + ULTIMATE ANTI-GRAB GUI
+-- =========================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- สถานะการเปิดใช้งาน
+local fovEnabled = true
+local antiGrabEnabled = true
+local flingEnabled = true
+
+-- 1. สร้าง ScreenGui หลัก
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "Horomori_GodtierGUI"
+screenGui.Parent = CoreGui
+
+-- สร้างวงกลม FOV สีฟ้า
+local fovCircle = Instance.new("Frame")
+fovCircle.Name = "FOVCircle"
+fovCircle.Size = UDim2.new(0, 200, 0, 200)
+fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+fovCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
+fovCircle.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+fovCircle.BackgroundTransparency = 0.9
+fovCircle.Visible = fovEnabled
+fovCircle.Parent = screenGui
+
+local uiCornerFov = Instance.new("UICorner")
+uiCornerFov.CornerRadius = UDim.new(1, 0)
+uiCornerFov.Parent = fovCircle
+
+local uiStrokeFov = Instance.new("UIStroke")
+uiStrokeFov.Color = Color3.fromRGB(0, 200, 255)
+uiStrokeFov.Thickness = 2
+uiStrokeFov.Parent = fovCircle
+
+-- 2. สร้างหน้าต่าง GUI ควบคุมหลัก
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 220, 0, 220)
+mainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+local uiCornerMain = Instance.new("UICorner")
+uiCornerMain.CornerRadius = UDim.new(0, 10)
+uiCornerMain.Parent = mainFrame
+
+local topBar = Instance.new("Frame")
+topBar.Size = UDim2.new(1, 0, 0, 35)
+topBar.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+topBar.BorderSizePixel = 0
+topBar.Parent = mainFrame
+
+local uiCornerTop = Instance.new("UICorner")
+uiCornerTop.CornerRadius = UDim.new(0, 10)
+uiCornerTop.Parent = topBar
+
+local fixTop = Instance.new("Frame")
+fixTop.Size = UDim2.new(1, 0, 0, 5)
+fixTop.Position = UDim2.new(0, 0, 1, -5)
+fixTop.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+fixTop.BorderSizePixel = 0
+fixTop.Parent = topBar
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -40, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Horomori Godtier"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 14
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = topBar
+
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 25, 0, 25)
+minimizeBtn.Position = UDim2.new(1, -30, 0, 5)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+minimizeBtn.Text = "-"
+minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeBtn.TextSize = 16
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.Parent = topBar
+
+local uiCornerMin = Instance.new("UICorner")
+uiCornerMin.CornerRadius = UDim.new(0, 5)
+uiCornerMin.Parent = minimizeBtn
+
+-- 3. คอนเทนต์ปุ่มกดภายใน GUI
+local contentHolder = Instance.new("ScrollingFrame")
+contentHolder.Size = UDim2.new(1, -10, 1, -45)
+contentHolder.Position = UDim2.new(0, 5, 0, 40)
+contentHolder.BackgroundTransparency = 1
+contentHolder.BorderSizePixel = 0
+contentHolder.CanvasSize = UDim2.new(0, 0, 0, 160)
+contentHolder.Parent = mainFrame
+
+local function createToggleButton(name, defaultState, posY, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 35)
+    btn.Position = UDim2.new(0, 0, 0, posY)
+    btn.BackgroundColor3 = defaultState and Color3.fromRGB(40, 180, 80) or Color3.fromRGB(180, 40, 40)
+    btn.Text = name .. ": " .. (defaultState and "ON" or "OFF")
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 13
+    btn.Font = Enum.Font.GothamSemibold
+    btn.Parent = contentHolder
+
+    local uiCornerBtn = Instance.new("UICorner")
+    uiCornerBtn.CornerRadius = UDim.new(0, 6)
+    uiCornerBtn.Parent = btn
+
+    local state = defaultState
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        btn.BackgroundColor3 = state and Color3.fromRGB(40, 180, 80) or Color3.fromRGB(180, 40, 40)
+        btn.Text = name .. ": " .. (state and "ON" or "OFF")
+        callback(state)
+    end)
+end
+
+createToggleButton("FOV Circle", true, 0, function(state)
+    fovEnabled = state
+    fovCircle.Visible = state
+end)
+
+createToggleButton("Anti-Grab", true, 40, function(state)
+    antiGrabEnabled = state
+end)
+
+createToggleButton("Godtier Fling", true, 80, function(state)
+    flingEnabled = state
+end)
+
+local isMinimized = false
+minimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        mainFrame:TweenSize(UDim2.new(0, 220, 0, 35), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+        contentHolder.Visible = false
+        minimizeBtn.Text = "+"
+    else
+        mainFrame:TweenSize(UDim2.new(0, 220, 0, 220), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+        contentHolder.Visible = true
+        minimizeBtn.Text = "-"
+    end
+end)
+
+-- 4. ระบบป้องกันขั้นสุดยอด (Ultimate Anti-Grab & Auto-Push Aura)
+RunService.Stepped:Connect(function()
+    if not antiGrabEnabled then return end
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local myHrp = LocalPlayer.Character.HumanoidRootPart
+        
+        -- ล้างค่าความเร็วผิดปกติที่โดนซัด
+        if myHrp.AssemblyLinearVelocity.Magnitude > 75 then
+            myHrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            myHrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        end
+
+        -- เคลียร์ Weld แปลกปลอมที่คนอื่นพยายามเอามาเชื่อมติดกับตัวเรา
+        for _, obj in ipairs(LocalPlayer.Character:GetDescendants()) do
+            if obj:IsA("Weld") or obj:IsA("WeldConstraint") or obj:IsA("Motor6D") then
+                if obj.Part1 and obj.Part1.Parent ~= LocalPlayer.Character then
+                    obj:Destroy()
+                end
+            end
+        end
+
+        -- ออร่าผลักคนอื่น: ถ้าใครเข้ามาประชิดตัวใกล้เกิน 4 บล็อก จะดีดตัวคนนั้นกระเด็นออกทันที
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local otherHrp = player.Character.HumanoidRootPart
+                local dist = (otherHrp.Position - myHrp.Position).Magnitude
+                if dist < 4 then
+                    -- ส่งแรงดีดคนอื่นออกไปไกลทันทีที่เข้ามาใกล้
+                    otherHrp.AssemblyLinearVelocity = (otherHrp.Position - myHrp.Position).Unit * 15000 + Vector3.new(0, 5000, 0)
+                end
+            end
+        end
+    end
+end)
+
+-- 5. ฟังก์ชันหากลุ่มเป้าหมายในวงกลม FOV
+local function getClosestPlayerInFOV()
+    local mousePos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local closestTarget = nil
+    local shortestDist = 100
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = player.Character.HumanoidRootPart
+            local screenPoint, onScreen = Camera:WorldToScreenPoint(hrp.Position)
+            
+            if onScreen then
+                local screenVector = Vector2.new(screenPoint.X, screenPoint.Y)
+                local dist = (screenVector - mousePos).Magnitude
+                if dist < shortestDist then
+                    shortestDist = dist
+                    closestTarget = hrp
+                end
+            end
+        end
+    end
+    return closestTarget
+end
+
+-- 6. ระบบซัดปลิว Godtier Fling
+local function triggerGodtierFling(targetHrp)
+    if not targetHrp or not targetHrp.Parent then return end
+    
+    local connection
+    local startTime = tick()
+    
+    connection = RunService.RenderStepped:Connect(function()
+        if not targetHrp or not targetHrp.Parent then
+            if connection then connection:Disconnect() end
+            return
+        end
+        
+        targetHrp.AssemblyLinearVelocity = Camera.CFrame.LookVector * 500000 + Vector3.new(0, 300000, 0)
+        targetHrp.AssemblyAngularVelocity = Vector3.new(999999, 999999, 999999)
+        
+        if tick() - startTime > 0.3 then
+            if connection then connection:Disconnect() end
+        end
+    end)
+end
+
+-- 7. ดักจับการคลิกเพื่อทำงาน
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not flingEnabled then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        local mousePos = UserInputService:GetMouseLocation()
+        local absPos = mainFrame.AbsolutePosition
+        local absSize = mainFrame.AbsoluteSize
+        
+        if mousePos.X >= absPos.X and mousePos.X <= absPos.X + absSize.X and mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + absSize.Y then
+            return 
+        end
+        
+        local targetHrp = getClosestPlayerInFOV()
+        if targetHrp then
+            triggerGodtierFling(targetHrp)
+        end
+    end
+end)
+
+print("Horomori Ultimate Anti-Grab & Godtier Fling Loaded!")
+

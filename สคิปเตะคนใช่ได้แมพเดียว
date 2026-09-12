@@ -1,0 +1,73 @@
+-- =========================================================
+-- HOROMORI - SILENT AIM / AUTO LOCK FOV SCRIPT
+-- =========================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- 1. สร้างวงกลม FOV สีฟ้าโปร่งใสตรงกลางจอ
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SilentAim_FOV"
+screenGui.Parent = CoreGui
+
+local fovCircle = Instance.new("Frame")
+fovCircle.Name = "Circle"
+fovCircle.Size = UDim2.new(0, 180, 0, 180) -- ปรับขนาดวงกลม FOV ได้ที่นี่ (ความกว้าง/สูง)
+fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+fovCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
+fovCircle.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+fovCircle.BackgroundTransparency = 0.9 -- โปร่งใสมาก ไม่บังตา
+fovCircle.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(1, 0)
+uiCorner.Parent = fovCircle
+
+local uiStroke = Instance.new("UIStroke")
+uiStroke.Color = Color3.fromRGB(0, 200, 255)
+uiStroke.Thickness = 2
+uiStroke.Parent = fovCircle
+
+-- 2. ฟังก์ชันหากลุ่มเป้าหมายที่อยู่ใกล้จุดกึ่งกลางจอที่สุด (ภายในวงกลม FOV)
+local function getClosestPlayerInFOV()
+    local mousePos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local closestTarget = nil
+    local shortestDist = 90 -- รัศมีตรวจจับ (ครึ่งหนึ่งของขนาด Frame เช่น วงกลม 180 รัศมีคือ 90)
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = player.Character.HumanoidRootPart
+            local screenPoint, onScreen = Camera:WorldToScreenPoint(hrp.Position)
+            
+            if onScreen then
+                local screenVector = Vector2.new(screenPoint.X, screenPoint.Y)
+                local dist = (screenVector - mousePos).Magnitude
+                if dist < shortestDist then
+                    shortestDist = dist
+                    closestTarget = hrp -- ล็อกที่ RootPart ของเป้าหมาย
+                end
+            end
+        end
+    end
+    return closestTarget
+end
+
+-- 3. ระบบ Silent Aim (ปรับทิศทาง Ray / การโจมตี หรือช่วยล็อกเป้าให้อัตโนมัติเวลาเราคลิก)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        local targetHrp = getClosestPlayerInFOV()
+        if targetHrp and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            -- เมื่อคลิกในขณะที่เป้าหมายอยู่ในวงกลม FOV จะทำการส่งแรงเหวี่ยงหรือซัดใส่ทันที
+            targetHrp.AssemblyLinearVelocity = Camera.CFrame.LookVector * 10000 + Vector3.new(0, 5000, 0)
+            print("Silent Aim Triggered on: " .. tostring(targetHrp.Parent.Name))
+        end
+    end
+end)
+
+print("Silent Aim FOV Loaded!")
+
